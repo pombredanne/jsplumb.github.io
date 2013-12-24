@@ -194,3 +194,8 @@ a:visited { color: #a0a; }
   height:250px;
   background-color:#fbfbfb;
 }
+
+/* disqus */
+#disqus_thread {
+  marign-top:28px;
+}
