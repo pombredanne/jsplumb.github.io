@@ -2,7 +2,7 @@
 layout: post
 title:  "CUSTOM CONNECTORS"
 date:   2013-12-22 18:58:00
-categories: jsplumb connector custom svg vml
+categories: posts
 ---
 
 jsPlumb ships with four connector types:
