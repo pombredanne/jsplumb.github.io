@@ -26,7 +26,3 @@ permalink: "demo/home/mootools.html"
 	<div class="component window" id="window6"><strong>Window 6</strong></div>
 	<div class="component window" id="window7"><strong>Window 7</strong></div>                       
 </div>
-
-{% include mootools.jsplumb.html %}
-
-<script src="/assets/demo/home/demo.js"></script>

@@ -19,4 +19,13 @@ title: jsPlumb
       <li><a href="{{ demo.url }}">{{ demo.title }} - {{demo.library}}</a></li>
     {% endfor %}
   </ul>
+  
+  <h1>Docs - Experimental</h1>
+  <p>This is also an experiment.</p>
+  <ul>
+    {% for doc in site.categories.docs %}
+      <li><a href="{{doc.url}}">{{ doc.title }}</a></li>
+    {% endfor %}
+  </ul>
+  
 </div>
