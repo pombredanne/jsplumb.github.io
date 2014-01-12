@@ -2,3 +2,4 @@ name: Your New Jekyll Site
 markdown: redcarpet
 pygments: true
 permalink: :categories/:title.html
+exclude: ["node_modules", "package.json", "Gruntfile.js", "CNAME", "README.md" ]
