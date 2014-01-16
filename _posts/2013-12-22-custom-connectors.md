@@ -235,7 +235,7 @@ Don't they, though?  Maybe we could modify the code and make them _behave_ like 
 basic behaviour of a spring: it has a fully compressed state, beyond which it can compress no more, and as you stretch it,
 the coils separate further and further. Obviously in a real spring, there is a value at which the spring has been stretched
 beyond the limit at which it can spring back.  We're not going to model that here, though.  Here we're just going to keep things
-simple - we'll add a flag defining whether or not to behave like a sring, and define a _minimum_ distance, corresponding to the 
+simple - we'll add a flag defining whether or not to behave like a spring, and define a _minimum_ distance, corresponding to the 
 fully compressed state:
 
 ```javascript

@@ -1,7 +1,7 @@
 ---
 layout: demo
-title:  "jsPlumb 1.6.0 demo - MooTools"
 library: "mootools"
+libraryName: "MooTools"
 demo: "home"
 categories: [demos]
 permalink: "demo/home/mootools.html"

@@ -7,6 +7,11 @@
 module.exports = function(grunt) {
   
   var JSPLUMB = grunt.option("jsplumb");
+  
+  if (JSPLUMB == null) {
+    console.log("Usage grunt --jsplumb=<PATH TO JSPLUMB>");
+    process.exit();
+  }
  
     grunt.initConfig({
         copy:{

@@ -1,7 +1,7 @@
 ---
 layout: demo
-title:  "jsPlumb 1.6.0 demo - jQuery"
-library: "jquery"  
+library: "jquery"
+libraryName: "jQuery"
 demo: "home"
 categories: [demos]
 permalink: "demo/home/jquery.html"
