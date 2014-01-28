@@ -423,9 +423,7 @@ And finally, if you make something awesome, please do consider sharing it with o
 ```
 
     
-<script src='http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js'></script>
-<script src='http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.2/jquery-ui.min.js'></script>
-<script src='http://jsplumbtoolkit.com/lib/jquery.ui.touch-punch.min.js'></script>
-<script src='http://jsplumbtoolkit.com/demo/js/jquery.jsPlumb-1.5.5-min.js'></script>
+{% include jquery.jsPlumb.html %}
+
 <script src="/assets/triangle-wave-connector.js"></script>
 <script src="/assets/triangle-wave-demo.js"></script>
