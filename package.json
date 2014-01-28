@@ -1,6 +1,7 @@
 {
-  "name": "jsPlumbi Site",
+  "name": "jsPlumb Toolkit",
   "version": "1.6.0",
+  "homepage":"http://jsplumbtoolkit.com",
   "description": "pipe up your life",
   "main": "index.js",
   "directories": {
@@ -32,8 +33,7 @@
     "grunt-regex-replace": "~0.2.5",
     "grunt-markdown": "~0.3.0",
     "grunt-contrib-clean": "~0.5.0",
-    "jsdoc": "git://github.com/sporritt/jsdoc.git",
-    "grunt-jsdoc": "~0.4.0",
-    "grunt-contrib-watch": "~0.5.3"
+    "grunt-contrib-watch": "~0.5.3",
+    "grunt-contrib-yuidoc": "~0.5.0"
   }
 }

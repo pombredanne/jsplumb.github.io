@@ -1,5 +1,6 @@
 //
-// copies jsplumb files - CSS, JS - from a jsplumb directory
+// copies jsPlumb files - CSS, JS, apidocs - from a jsPlumb directory. It is expected that you have previously run a build in the
+// jsPlumb directory you supply.
 //
 //  usage: grunt --jsplumb=PATH_TO_JSPLUMB_PROJECT_ROOT
 //
@@ -14,6 +15,7 @@ module.exports = function(grunt) {
   }
  
     grunt.initConfig({
+        pkg: grunt.file.readJSON('package.json'),
         copy:{
             css:{
                 files:[
@@ -37,10 +39,29 @@ module.exports = function(grunt) {
               files:[
                 { src:JSPLUMB + "/logo-bw.png", dest:"assets/logo-bw.png" }
               ]
+            },
+            apidoc:{
+              files:[
+                { expand:true, cwd:JSPLUMB + "/dist/apidocs", src:"**/*.*", dest:"apidocs" }
+              ]
             }
+        },
+        yuidoc: {
+          compile: {
+            name: '<%= pkg.name %>',
+            description: '<%= pkg.description %>',
+            version: '<%= pkg.version %>',
+            url: '<%= pkg.homepage %>',
+            options: {
+              paths: JSPLUMB + '/doc/api/',
+              themedir: 'yuitheme/',
+              outdir: 'apidocs/'
+            }
+          }
         }
     });
     
+    grunt.loadNpmTasks('grunt-contrib-yuidoc');
     grunt.loadNpmTasks('grunt-contrib-copy');
     grunt.registerTask('default', ['copy']);
 };
