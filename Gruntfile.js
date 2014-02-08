@@ -44,6 +44,11 @@ module.exports = function(grunt) {
               files:[
                 { expand:true, cwd:JSPLUMB + "/dist/apidocs", src:"**/*.*", dest:"apidocs" }
               ]
+            },
+            tests:{
+              files:[
+              { expand:true, cwd:JSPLUMB + "/dist/tests", src:"**/*.*", dest:"tests" }
+              ]
             }
         },
         yuidoc: {
