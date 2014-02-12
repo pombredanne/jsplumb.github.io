@@ -62,9 +62,22 @@ a:visited { color: #a0a; }
 
 .site {  
   text-align: justify;
-  width: 42em;
-  margin: 4em auto 2em;
-  line-height: 1.5em;
+width: 42em;
+margin: 4em auto 2em;
+line-height: 1.5em;
+margin-left: 27%;
+}
+
+
+.lhs {
+  float: left;
+  font-size: 11px;
+  text-align: left;
+  padding-left: 5px;
+  width: 25%;
+  max-width:300px;
+  overflow-x:auto;
+  margin-top: 50px;
 }
 
 .header a {
