@@ -1,7 +1,7 @@
 {
   "name": "jsPlumb Toolkit",
   "version": "1.6.0",
-  "homepage":"http://jsplumbtoolkit.com",
+  "homepage": "http://jsplumbtoolkit.com",
   "description": "pipe up your life",
   "main": "index.js",
   "directories": {
@@ -34,6 +34,7 @@
     "grunt-markdown": "~0.3.0",
     "grunt-contrib-clean": "~0.5.0",
     "grunt-contrib-watch": "~0.5.3",
-    "grunt-contrib-yuidoc": "~0.5.0"
+    "grunt-contrib-yuidoc": "~0.5.0",
+    "grunt-jekyll": "~0.4.1"
   }
 }

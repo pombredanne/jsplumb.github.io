@@ -6,8 +6,8 @@
 		<meta name="viewport" content="width=device-width">
         <title>jsPlumb {{ site.jsplumb }} demo - {{ page.demo }} ({{ page.libraryName }})</title>
 		<link href="//netdna.bootstrapcdn.com/font-awesome/4.0.1/css/font-awesome.css" rel="stylesheet">
-        <link rel="stylesheet" href="/css/demo-all.css">
-		<link rel="stylesheet" href="/assets/demo/{{page.demo}}/demo.css">
+        <link rel="stylesheet" href="../demo-all.css">
+		<link rel="stylesheet" href="demo.css">
     </head>
     
     <body data-demo-id="{{page.demo}}" data-library="{{page.library}}">
@@ -22,8 +22,8 @@
 		{% capture libimport %}{{page.library}}.jsplumb.html{% endcapture %}
 		{% include {{libimport}} %}
 		
-		<script src="/assets/demo/{{page.demo}}/demo.js"></script>
-		<script src="/assets/js/demo-list.js"></script>
+		<script src="demo.js"></script>
+		<script src="../demo-list.js"></script>
 		
 		{% include track-jsplumb.html %}
         

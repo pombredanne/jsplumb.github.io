@@ -1,4 +1,11 @@
-<!DOCTYPE html>
+{% comment %}
+
+	Template for api doc pages.  The yuidoc theme has been overridden so that it just 
+    puts out markdown formatted fragments, with some front matter.  This template wraps
+    the yuidoc with the page layout and tracking tags.
+
+{% endcomment %}
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -8,8 +15,8 @@
     <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.1/css/font-awesome.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/syntax.css">
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/demo-all.css">
     <link rel="stylesheet" href="/css/gollum-template.css">
+    <link rel="stylesheet" href="/css/demo-all.css">
     <!-- yuidoc -->
     <link rel="stylesheet" href="{{ page.yuiGridsUrl }}">
     <link rel="stylesheet" href="{{ page.projectAssets }}/vendor/prettify/prettify-min.css">
@@ -19,7 +26,7 @@
     <style>
         #doc {
             text-align:left;
-            margin-top:60px;
+            margin-top:44px;
         }
     </style>
 </head>

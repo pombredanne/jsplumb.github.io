@@ -40,16 +40,31 @@ module.exports = function(grunt) {
                 { src:JSPLUMB + "/logo-bw.png", dest:"assets/logo-bw.png" }
               ]
             },
-            apidoc:{
-              files:[
-                { expand:true, cwd:JSPLUMB + "/dist/apidocs", src:"**/*.*", dest:"apidocs" }
-              ]
-            },
+           // apidoc:{
+             // files:[
+              //  { expand:true, cwd:JSPLUMB + "/dist/apidocs", src:"**/*.*", dest:"apidocs" }
+             // ]
+            //},
             tests:{
               files:[
-              { expand:true, cwd:JSPLUMB + "/dist/tests", src:"**/*.*", dest:"tests" }
+                { expand:true, cwd:JSPLUMB + "/tests", src:[  /*"qunit-*.html",*/ "qunit-*.css", "qunit-*.js", "*.js", "index.html"], dest:"tests" }
               ]
-            }
+            },
+            demos:{
+              files:[
+                { expand:true, cwd:JSPLUMB + "/dist/demo", src:"**/*.*", dest:"demo" }
+              ]
+            },
+			apidoc:{
+				files:[
+					{ expand:true, cwd:"_site/apidocs", src:"**/*.*", dest:JSPLUMB + "/dist/apidocs"}
+				]
+			},
+			doc:{
+				files:[
+					{ expand:true, cwd:"_site/doc", src:"**/*.*", dest:JSPLUMB + "/dist/doc"}
+				]
+			}
         },
         yuidoc: {
           compile: {
@@ -63,10 +78,101 @@ module.exports = function(grunt) {
               outdir: 'apidocs/'
             }
           }
-        }
+        },
+        clean:{
+          options:{
+				force:true
+			},
+			all:[ "tests", "demo", "apidocs", "_site" ]
+        },
+		jekyll: {
+    		options: {
+				src:'<%= app %>'
+    		},
+			dist:{
+				options:{
+					dest:"_site",
+					config:'_config.yml'
+				}
+			}
+		}
     });
+    
+    var libraries = [ "jquery", "dom", "mootools", "yui" ],
+      	libraryNames = [ "jQuery", "No Library", "MooTools", "YUI3" ],
+		renderers = [ "svg", "vml" ];
+      
+    var _copyDemos = function() {
+      var exclusions = ["font", "requirejs", "js"];
+      var _one = function(f) {
+          if (exclusions.indexOf(f) == -1) {
+              if (grunt.file.isDir("demo/" + f)) {
+                for (var j = 0; j < libraries.length; j++) {
+                  var fname = "demo/" + f + "/" + libraries[j] + ".html",
+                      c = grunt.file.read(fname),
+                      m = c.match(/(<!-- demo.*>.*\n)(.*\n)*(.*\/demo -->)/),
+                      t = m[0].match(/<h4>(.*)<\/h4>/)[0],
+                      frontMatter = "---\n" + 
+                        "layout: demo\n" +
+                        "demo: " + f + "\n" + 
+                        "date:   2013-12-22 18:58:00\n" + // it would be nice to put the real date here
+                        "categories: demos\n" + 
+                        "title: " + t + "\n" +
+                        "library: " + libraries[j] + "\n" +
+                        "libraryName: " + libraryNames[j] + "\n" +
+                        "---\n\n";
+                  
+                  grunt.file.write(fname, frontMatter + m[0]);
+                }
+              }
+          }
+      };
+      var sources = grunt.file.expand({ cwd:"demo" }, "*");
+      for (var i = 0; i < sources.length; i++)
+          _one(sources[i]);
+    };
+    
+    var _createTests = function() {
+		for (var j = 0; j < renderers.length; j++) {
+			for (var i = 0; i < libraries.length; i++) {
+				var frontMatter = "---\n" + 
+					"layout: test\n" +
+					"date:   2014-01-01 12:00:00\n" + // it would be nice to put the real date here
+					"categories: tests\n" +
+					"library: " + libraries[i] + "\n" +
+					"renderer: "  + renderers[j] + "\n" +
+					"---\n\n";
+					
+				grunt.file.write("tests/qunit-" + renderers[j] + "-"  + libraries[i] + "-instance.html", frontMatter);
+			}
+		}
+		/*
+        // extract the content from the test index page and put it in a layout.
+        var c = grunt.file.read("tests/index.html")
+            m = c.match(/(<!-- content.*>.*\n)(.*\n)*(.*\/content -->)/),
+            frontMatter = "---\n" + 
+                        "layout: test\n" +
+                        "date:   2013-12-22 18:58:00\n" + // it would be nice to put the real date here
+                        "categories: tests\n" +
+                        "---\n\n";
+                        
+            grunt.file.write("tests/index.html", frontMatter + m[0]);*/
+    };
+    
     
     grunt.loadNpmTasks('grunt-contrib-yuidoc');
     grunt.loadNpmTasks('grunt-contrib-copy');
-    grunt.registerTask('default', ['copy']);
+    grunt.loadNpmTasks('grunt-contrib-clean');
+	grunt.loadNpmTasks('grunt-jekyll');
+	
+	// TODO: now copy the apidocs and the other docs back in to jsplumb.
+    
+    grunt.registerTask('copyFrom', [ 'copy:css', 'copy:js', 'copy:lib', 'copy:img', /*'copy:apidoc',*/ 'copy:tests', 'copy:demos']);
+	grunt.registerTask('copyTo', [ 'copy:apidoc', 'copy:doc' ]);
+    
+    grunt.registerTask('demos', _copyDemos);
+    grunt.registerTask('tests', _createTests);
+    grunt.registerTask('default', ['clean:all', 'copyFrom', 'demos', 'tests', 'yuidoc', 'jekyll',  'copyTo']);
+    
+    
 };
