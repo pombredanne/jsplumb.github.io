@@ -8,13 +8,14 @@ jsPlumb.ready(function() {
             lineWidth:1,
             strokeStyle:"#456"
         },
-        MaxConnections:-1
+        MaxConnections:-1,
+        Container:"demo"
     });
     
     var w = jsPlumb.getSelector(".w");
+    jsPlumb.draggable(w, { filter:".foo" });
     jsPlumb.makeSource(w, { filter:".foo" });
     jsPlumb.makeTarget(w);
-    //jsPlumb.draggable(w, { filter:".foo" });
     
     jsPlumb.connect({source:"w1", target:"w2"});
     jsPlumb.connect({source:"w7", target:"w5"});
@@ -22,8 +23,13 @@ jsPlumb.ready(function() {
     jsPlumb.connect({source:"w4", target:"w6"});
     jsPlumb.connect({source:"w2", target:"w7"});
     
-    jsPlumb.on(document.getElementById("demo"), "button", "click", function() {
-        console.log("button", this);
+    // attach listeners to add/remove links
+    jsPlumb.on(document.getElementById("demo"), ".add", "click", function() {
+        jsPlumb.addToDragSelection(this.parentNode);
     });
     
+    jsPlumb.on(document.getElementById("demo"), ".remove", "click", function() {
+        jsPlumb.removeFromDragSelection(this.parentNode);
+    });
+
 });
