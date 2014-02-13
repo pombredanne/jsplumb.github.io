@@ -12,13 +12,17 @@
     </head>
     <body>
         {% include header.html %}
-        <div class="lhs">
-            <ul class="posts">
-                {% for post in site.categories.posts %}
-                    <li><span>{{ post.date | date_to_string }}</span> &raquo; <a href="{{ post.url }}">{{ post.title }}</a></li>
-                {% endfor %}
-            </ul>
-        </div>
+        
+        {% if page.isPost %}
+            <div class="lhs">
+                <ul class="posts">
+                    {% for post in site.categories.posts %}
+                        <li><span>{{ post.date | date_to_string }}</span> &raquo; <a href="{{ post.url }}">{{ post.title }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+        
         <div class="site">
             {{ content }}
             <div class="footer">
