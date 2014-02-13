@@ -55,6 +55,7 @@ Each element is configured to be a connection source (you can drag new connectio
 element acts as a drag handle for the entire element) and target, using Continuous anchors.
 
 <div class="demo" id="demo">
+	<div class="clearSelection" style="position:absolute;right:10px;top:0px"><a href="#">clear drag selection</a></div>
 	<div id="w1" class="w" style="left:25px;top:35px"><a class="add">+</a><a class="remove">-</a><div class="foo" style="height:10px;width:10px;background-color:blue"></div></div>
 	<div id="w2" class="w" style="left:185px;top:55px"><a class="add">+</a><a class="remove">-</a><div class="foo" style="height:10px;width:10px;background-color:blue"></div></div>
     <div id="w3" class="w" style="left:145px;top:175px"><a class="add">+</a><a class="remove">-</a><div class="foo" style="height:10px;width:10px;background-color:blue"></div></div>
@@ -73,7 +74,7 @@ adds a class to each element that is part of the drag selection:
 `jsplumb-drag-selected`
 
 
-{% include dom.jsplumb.html %}
+{% include dom.jsplumb-unminified.html %}
 <script src="/assets/multiple-drag.js"></script>
 
 

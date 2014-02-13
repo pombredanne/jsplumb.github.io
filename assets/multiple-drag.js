@@ -23,13 +23,21 @@ jsPlumb.ready(function() {
     jsPlumb.connect({source:"w4", target:"w6"});
     jsPlumb.connect({source:"w2", target:"w7"});
     
+    var demo = document.getElementById("demo");
+    
     // attach listeners to add/remove links
-    jsPlumb.on(document.getElementById("demo"), ".add", "click", function() {
+    jsPlumb.on(demo, ".add", "click", function() {
         jsPlumb.addToDragSelection(this.parentNode);
     });
     
-    jsPlumb.on(document.getElementById("demo"), ".remove", "click", function() {
+    jsPlumb.on(demo, ".remove", "click", function() {
         jsPlumb.removeFromDragSelection(this.parentNode);
+    });
+    
+    jsPlumb.on(demo, ".clearSelection a", "click", function(e) {
+        jsPlumb.clearDragSelection();
+        e.preventDefault();
+        e.stopPropagation();
     });
 
 });
