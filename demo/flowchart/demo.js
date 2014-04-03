@@ -1,6 +1,6 @@
 	jsPlumb.ready(function() {
 
-		var instance = jsPlumb.getInstance({
+		var instance = window.instance =jsPlumb.getInstance({
 			// default drag options
 			DragOptions : { cursor: 'pointer', zIndex:2000 },
 			// the overlays to decorate each connection with.  note that the label overlay uses a function to generate the label text; in this
@@ -14,7 +14,17 @@
 				}]
 			],
 			Container:"flowchart-demo"
-		});		
+		});
+
+window.setZoom = function(z, el) {
+    var p = [ "webkit", "moz", "ms", "o", "" ],
+        s = "scale(" + z + ")";
+
+    for (var i = 0; i < p.length; i++)
+		el.style[p[i] + "Transform"] = s;
+
+    instance.setZoom(z);    
+};
 
 		// this is the paint style for the connecting lines..
 		var connectorPaintStyle = {

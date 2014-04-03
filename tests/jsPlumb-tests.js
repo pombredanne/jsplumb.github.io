@@ -2014,6 +2014,161 @@ var testSuite = function(renderMode, _jsPlumb) {
 		assertEndpointCount("d16", 0, _jsPlumb);
 		assertEndpointCount("d17", 0, _jsPlumb);		
 	});
+
+// setSource/setTarget methods.
+
+
+	test(renderMode + ": _jsPlumb.setSource (element)", function() {
+		
+		var sc = false;
+		_jsPlumb.bind("connectionMoved", function() {
+			sc = true;
+		});
+		
+		var d16 = _addDiv("d16"), d17 = _addDiv("d17"), d18 = _addDiv("d18");
+		
+		var c = _jsPlumb.connect({source:"d16", target:d17, endpoint:"Rectangle"});
+		equal(c.sourceId, "d16");
+		equal(c.targetId, "d17");
+		
+		equal(c.endpoints[0].type, "Rectangle", "endpoint is type Rectangle");
+
+		_jsPlumb.setSource(c, d18);
+		equal(c.sourceId, "d18", "source is now d18");
+		equal(c.endpoints[0].type, "Rectangle", "endpoint is still type Rectangle");
+		
+		equal(sc, true, "connectionMoved event fired");
+
+		// test we dont overwrite if the source is already the element
+		c.endpoints[0].original = true;
+		_jsPlumb.setSource(c, d18);
+		equal(c.endpoints[0].original, true, "redundant setSource call ignored");
+	});
+
+	test(renderMode + ": _jsPlumb.setSource (endpoint)", function() {
+		var d16 = _addDiv("d16"), d17 = _addDiv("d17"), d18 = _addDiv("d18");
+		var ep = _jsPlumb.addEndpoint(d18), ep2 = _jsPlumb.addEndpoint(d18);
+		
+		var c = _jsPlumb.connect({source:"d16", target:d17});
+		equal(c.sourceId, "d16");
+		equal(c.targetId, "d17");
+
+		_jsPlumb.setSource(c, ep);
+		equal(c.sourceId, "d18", "source is now d18");
+
+		// test that new endpoint is set (different from the case that an element or element id was given)
+		c.endpoints[0].original = true;
+		_jsPlumb.setSource(c, ep2);
+		equal(c.endpoints[0].original, undefined, "setSource with new endpoint honoured");
+
+	});
+
+	test(renderMode + ": _jsPlumb.setSource (element, with makeSource)", function() {
+		var d16 = _addDiv("d16"), d17 = _addDiv("d17"), d18 = _addDiv("d18");
+		_jsPlumb.makeSource(d18, {
+			endpoint:"Rectangle"
+		});
+
+		var c = _jsPlumb.connect({source:"d16", target:d17});
+		equal(c.sourceId, "d16");
+		equal(c.targetId, "d17");
+
+		_jsPlumb.setSource(c, d18);
+		equal(c.sourceId, "d18", "source is now d18");
+		equal(c.endpoints[0].type, "Rectangle", "endpoint is type Rectangle");
+
+		// test we dont overwrite if the source is already the element
+		c.endpoints[0].original = true;
+		_jsPlumb.setSource(c, d18);
+		equal(c.endpoints[0].original, true, "redundant setSource call ignored");
+	});
+
+
+	test(renderMode + ": _jsPlumb.setTarget (element)", function() {
+		
+		var sc = false;
+		_jsPlumb.bind("connectionMoved", function() {
+			sc = true;
+		});
+		
+		var d16 = _addDiv("d16"), d17 = _addDiv("d17"), d18 = _addDiv("d18");
+		
+		var c = _jsPlumb.connect({source:"d16", target:d17, endpoint:"Rectangle"});
+		equal(c.sourceId, "d16");
+		equal(c.targetId, "d17");
+		
+		equal(c.endpoints[1].type, "Rectangle", "endpoint is type Rectangle");
+
+		_jsPlumb.setTarget(c, d18);
+		equal(c.targetId, "d18", "source is now d18");
+		equal(c.endpoints[1].type, "Rectangle", "endpoint is still type Rectangle");
+		
+		equal(sc, true, "connectionMoved event fired");
+
+		// test we dont overwrite if the target is already the element
+		c.endpoints[1].original = true;
+		_jsPlumb.setTarget(c, d18);
+		equal(c.endpoints[1].original, true, "redundant setTarget call ignored");
+	});
+
+	test(renderMode + ": _jsPlumb.setTarget (endpoint)", function() {
+		var sc = false;
+		_jsPlumb.bind("connectionMoved", function() {
+			sc = true;
+		});
+		
+		var d16 = _addDiv("d16"), d17 = _addDiv("d17"), d18 = _addDiv("d18");
+		var ep = _jsPlumb.addEndpoint(d18), ep2 = _jsPlumb.addEndpoint(d18);
+		
+		var c = _jsPlumb.connect({source:"d16", target:d17});
+		equal(c.sourceId, "d16");
+		equal(c.targetId, "d17");
+
+		_jsPlumb.setTarget(c, ep);
+		equal(c.targetId, "d18", "source is now d18");
+		
+		equal(sc, true, "connectionMoved event fired");
+
+		// test that new endpoint is set (different from the case that an element or element id was given)
+		c.endpoints[1].original = true;
+		_jsPlumb.setTarget(c, ep2);
+		equal(c.endpoints[1].original, undefined, "setTarget with new endpoint honoured");
+	});
+
+	test(renderMode + ": _jsPlumb.setTarget (element, with makeSource)", function() {
+		var sc = false;
+		_jsPlumb.bind("connectionMoved", function() {
+			sc = true;
+		});
+		
+		var d16 = _addDiv("d16"), d17 = _addDiv("d17"), d18 = _addDiv("d18");
+		_jsPlumb.makeTarget(d18, {
+			endpoint:"Rectangle"
+		});
+
+		var c = _jsPlumb.connect({source:"d16", target:d17});
+		equal(c.sourceId, "d16");
+		equal(c.targetId, "d17");
+
+		_jsPlumb.setTarget(c, d18);
+		equal(c.targetId, "d18", "source is now d18");
+		equal(c.endpoints[1].type, "Rectangle", "endpoint is type Rectangle");
+		
+		equal(sc, true, "connectionMoved event fired");
+
+		// test we dont overwrite if the target is already the element
+		c.endpoints[1].original = true;
+		_jsPlumb.setTarget(c, d18);
+		equal(c.endpoints[1].original, true, "redundant setTarget call ignored");
+	});
+
+
+
+// end setSource/setTarget methods.
+
+
+
+
     
     /*
 

@@ -28,8 +28,7 @@ On disk, this is represented with a directory structure like this:
       - index.handlebars
       - ...
 
-Here, **main.handlebars** is the main layout file.  **index.handlebars** is one of the several partials - in this case, the default page content when
-the user lands on the API doc home page. This file is one of the files you will most likely want to override.
+Here, **main.handlebars** is the main layout file.  **index.handlebars** is one of the several partials - in this case, the default page content when the user lands on the API doc home page. This file is one of the files you will most likely want to override.
 
 
 #### YUIDoc Layout File
@@ -70,7 +69,7 @@ and the execution environment provides a few key pieces of information at page g
 </head>
 ```
 
-So here, the template makes use of four parameters:
+The template makes use of four parameters:
 
 - htmlTitle
 - yuiGridsUrl
@@ -186,10 +185,9 @@ pull all of the page head, page header and script import stuff out into a layout
 </html>
 ```
 
-I've written that into the file `_layouts/apidoc.html`. 
+I've written that into the file `_layouts/apidoc.html`.  In fact there are a few extra CSS files in the file that are not listed here; they are for the jsPlumb styles.
 
-Now **main.handlebars** can consist of just the page content markup.  Of course we need Jekyll to process it, so we will give it some
-YAML front matter as well:
+Now **main.handlebars** can consist of just the page content markup.  Of course we need Jekyll to process it, so we will give it some YAML front matter as well:
 
 ```html
 ---
@@ -218,8 +216,7 @@ categories: apidocs
 </div>
 ```
 
-Excellent! Or is it? The layout file refers to variables like **pageAssets** and **yuiSeedUrl**. We need to expose them to Jekyll...which, it
-turns out, is very simple - we just expose them in the front matter. So now **main.handlebars** looks like this:
+Excellent! Or is it? The layout file refers to variables like **pageAssets** and **yuiSeedUrl**. We need to expose them to Jekyll.  Fortunately, this, it turns out, is very simple - we just expose them in the front matter. So now **main.handlebars** looks like this:
 
 ```html
 ---

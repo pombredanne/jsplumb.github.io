@@ -19,10 +19,10 @@ module.exports = function(grunt) {
         copy:{
 			all:{
 				files:[
-                   { expand:true, cwd:JSPLUMB + "/dist", src:"**/*.*", dest:"."},
-				   { src:"main.css", dest:"css/" },
-				   { src:"syntax.css", dest:"css/" }
-                ]
+          { expand:true, cwd:JSPLUMB + "/dist", src:"**/*.*", dest:"."},
+          { src:"main.css", dest:"css/" },
+          { src:"syntax.css", dest:"css/" }
+        ]
 			}
         },
         clean:{
@@ -37,6 +37,6 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-copy');
     grunt.loadNpmTasks('grunt-contrib-clean');
 	
-    grunt.registerTask('build', [ 'clean:all', 'copy:all' ]);
+    grunt.registerTask('default', [ 'clean:all', 'copy:all' ]);
     
 };
