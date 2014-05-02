@@ -270,6 +270,7 @@ jsPlumb.connect({
 ```
 
 <br />
+
 ### WHAT ABOUT STUBS?  I WANT STUBS.
 
 Some types of connectors benefit from having a first segment that emanates as a straight line from their anchor, before
@@ -311,6 +312,7 @@ jsPlumb.connect({
 ```
 
 <br />
+
 ### IN SUMMARY
 It's pretty straightforward to add a new connector type to jsPlumb. Most of the work is really in the maths
 underpinning the connector's path. For reference, below is the "triangle wave" connector's code in full 
@@ -329,6 +331,7 @@ And finally, if you make something awesome, please do consider sharing it with o
 
 
 ### THE FINAL CODE
+
 ```javascript
 ;(function() {
     // this function takes a point from the midline and projects it to the 
@@ -423,7 +426,7 @@ And finally, if you make something awesome, please do consider sharing it with o
 ```
 
     
-{% include jquery.jsPlumb.html %}
+{% include jquery.jsplumb.html %}
 
 <script src="/assets/triangle-wave-connector.js"></script>
 <script src="/assets/triangle-wave-demo.js"></script>

@@ -74,7 +74,7 @@ You will most likely have noticed in the example that whenever you add an elemen
 `jsplumb-drag-selected`
 
 
-{% include dom.jsplumb-unminified.html %}
+{% include dom.jsplumb.html %}
 <script src="/assets/multiple-drag.js"></script>
 
 
