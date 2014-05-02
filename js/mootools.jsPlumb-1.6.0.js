@@ -823,6 +823,15 @@
             l[insertAtStart ? "unshift" : "push"](value);
             return l;
         },
+        consume : function(e, doNotPreventDefault) {
+            if (e.stopPropagation)
+                e.stopPropagation();
+            else 
+                e.returnValue = false;
+            
+            if (!doNotPreventDefault && e.preventDefault)
+                 e.preventDefault();
+        },
         //
         // extends the given obj (which can be an array) with the given constructor function, prototype functions, and
         // class members, any of which may be null.
@@ -1040,22 +1049,62 @@
  */
 ;(function() {
     
-		var canvasAvailable = !!document.createElement('canvas').getContext,
+	var canvasAvailable = !!document.createElement('canvas').getContext,
 		svgAvailable = !!window.SVGAngle || document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1"),
 		vmlAvailable = function() {		    
-            if (vmlAvailable.vml === undefined) { 
-                var a = document.body.appendChild(document.createElement('div'));
-            	a.innerHTML = '<v:shape id="vml_flag1" adj="1" />';
-            	var b = a.firstChild;
-            	if (b != null && b.style != null) {
+	        if (vmlAvailable.vml === undefined) { 
+	            var a = document.body.appendChild(document.createElement('div'));
+	        	a.innerHTML = '<v:shape id="vml_flag1" adj="1" />';
+	        	var b = a.firstChild;
+	        	if (b != null && b.style != null) {
 	            	b.style.behavior = "url(#default#VML)";
 	            	vmlAvailable.vml = b ? typeof b.adj == "object": true;
 	            }
 	            else
 	            	vmlAvailable.vml = false;
-            	a.parentNode.removeChild(a);
-            }
-            return vmlAvailable.vml;
+	        	a.parentNode.removeChild(a);
+	        }
+	        return vmlAvailable.vml;
+		},
+		// TODO: remove this once we remove all library adapter versions and have only vanilla jsplumb: this functionality
+		// comes from Mottle.
+		iev = (function() {
+			var rv = -1; 
+			if (navigator.appName == 'Microsoft Internet Explorer') {
+				var ua = navigator.userAgent,
+					re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+				if (re.exec(ua) != null)
+					rv = parseFloat(RegExp.$1);
+			}
+			return rv;
+		})(),
+		isIELT9 = iev > -1 && iev < 9, 
+		_genLoc = function(e, prefix) {
+			if (e == null) return [ 0, 0 ];
+			var ts = _touches(e), t = _getTouch(ts, 0);
+			return [t[prefix + "X"], t[prefix + "Y"]];
+		},
+		_pageLocation = function(e) {
+			if (e == null) return [ 0, 0 ];
+			if (isIELT9) {
+				return [ e.clientX + document.documentElement.scrollLeft, e.clientY + document.documentElement.scrollTop ];
+			}
+			else {
+				return _genLoc(e, "page");
+			}
+		},
+		_screenLocation = function(e) {
+			return _genLoc(e, "screen");
+		},
+		_clientLocation = function(e) {
+			return _genLoc(e, "client");
+		},
+		_getTouch = function(touches, idx) { return touches.item ? touches.item(idx) : touches[idx]; },
+		_touches = function(e) {
+			return e.touches && e.touches.length > 0 ? e.touches : 
+				   e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches :
+				   e.targetTouches && e.targetTouches.length > 0 ? e.targetTouches :
+				   [ e ];
 		};
         
     /**
@@ -1292,6 +1341,10 @@
         
         headless:false,
 
+        pageLocation:_pageLocation,
+        screenLocation:_screenLocation,
+        clientLocation:_clientLocation,
+
         getAttribute:function(el, attName) {
         	return el.getAttribute(attName);
         },
@@ -1516,28 +1569,30 @@
 			
 			// user can supply a beforeDrop callback, which will be executed before a dropped
 			// connection is confirmed. user can return false to reject connection.			
-			this.isDropAllowed = function(sourceId, targetId, scope, connection, dropEndpoint) {
-				var r = this._jsPlumb.instance.checkCondition("beforeDrop", { 
-					sourceId:sourceId, 
-					targetId:targetId, 
-					scope:scope,
-					connection:connection,
-					dropEndpoint:dropEndpoint 
-				});
-				if (this._jsPlumb.beforeDrop) {
-					try { 
-						r = this._jsPlumb.beforeDrop({ 
-							sourceId:sourceId, 
-							targetId:targetId, 
-							scope:scope, 
-							connection:connection,
-							dropEndpoint:dropEndpoint
-						}); 
+			this.isDropAllowed = function(sourceId, targetId, scope, connection, dropEndpoint, source, target) {
+					var r = this._jsPlumb.instance.checkCondition("beforeDrop", { 
+						sourceId:sourceId, 
+						targetId:targetId, 
+						scope:scope,
+						connection:connection,
+						dropEndpoint:dropEndpoint,
+						source:source, target:target
+					});
+					if (this._jsPlumb.beforeDrop) {
+						try { 
+							r = this._jsPlumb.beforeDrop({ 
+								sourceId:sourceId, 
+								targetId:targetId, 
+								scope:scope, 
+								connection:connection,
+								dropEndpoint:dropEndpoint,
+								source:source, target:target
+							}); 
+						}
+						catch (e) { _ju.log("jsPlumb: beforeDrop callback failed", e); }
 					}
-					catch (e) { _ju.log("jsPlumb: beforeDrop callback failed", e); }
-				}
-				return r;
-			};													
+					return r;
+				};													
 
 		    var boundListeners = [],
 		    	bindAListener = function(obj, type, fn) {
@@ -1545,9 +1600,10 @@
 			    	obj.bind(type, fn);
 			    },
 		    	domListeners = [],
-            	bindOne = function(o, c, evt) {
+            	bindOne = function(o, c, evt, override) {
 					var filteredEvent = eventFilters[evt] || evt,
 						fn = function(ee) {
+							if (override && override(ee) === false) return;
 							c.fire(filteredEvent, c, ee);
 						};
 					domListeners.push([o, evt, fn, c]);
@@ -1586,9 +1642,10 @@
             	boundListeners = null;
             };            
 		    
-		    this.attachListeners = function(o, c) {
+		    this.attachListeners = function(o, c, overrides) {
+				overrides = overrides || {};
 				for (var i = 0, j = events.length; i < j; i++) {
-					bindOne(o, c, events[i]); 			
+					bindOne(o, c, events[i], overrides[events[i]]); 			
 				}
 			};	
 			this.detachListeners = function() {
@@ -1746,7 +1803,11 @@
                         
                     if (this.canvas != null) {
                         if (this._jsPlumb.instance.hoverClass != null) {
-							this._jsPlumb.instance[hover ? "addClass" : "removeClass"](this.canvas, this._jsPlumb.instance.hoverClass);
+                        	var method = hover ? "addClass" : "removeClass";
+							this._jsPlumb.instance[method](this.canvas, this._jsPlumb.instance.hoverClass);
+                        }
+                        if (this._jsPlumb.hoverClass != null) {
+							this._jsPlumb.instance[method](this.canvas, this._jsPlumb.hoverClass);
                         }
                     }
 		   		 	if (this._jsPlumb.hoverPaintStyle != null) {
@@ -2195,7 +2256,8 @@
 							_currentInstance.select({source:element}).addClass(_currentInstance.elementDraggingClass + " " + _currentInstance.sourceElementDraggingClass, true);
 							_currentInstance.select({target:element}).addClass(_currentInstance.elementDraggingClass + " " + _currentInstance.targetElementDraggingClass, true);
 							_currentInstance.setConnectionBeingDragged(true);
-						});
+							if (options.canDrag) return dragOptions.canDrag();
+						}, false);
 	
 						options[dragEvent] = _ju.wrap(options[dragEvent], function() {
 							// TODO: here we could actually use getDragObject, and then compute it ourselves,
@@ -3587,7 +3649,7 @@
 						// source - jpc.sourceId
 						// target - elid
 						//
-						var _continue = proxyComponent.isDropAllowed(idx === 0 ? elid : jpc.sourceId, idx === 0 ? jpc.targetId : elid, jpc.scope, jpc, null);
+						var _continue = proxyComponent.isDropAllowed(idx === 0 ? elid : jpc.sourceId, idx === 0 ? jpc.targetId : elid, jpc.scope, jpc, null, idx === 0 ? elInfo.el : jpc.source, idx === 0 ? jpc.target : elInfo.el);
 
 						// reinstate any suspended endpoint; this just puts the connection back into
 						// a state in which it will report sensible values if someone asks it about
@@ -3609,7 +3671,6 @@
 								newTargetId:idx == 1 ? elid : jpc.targetId,
 								connection:jpc
 							}, originalEvent);
-							
 						}
 
 						if (_continue) {
@@ -3802,13 +3863,6 @@
 							this.repaint(oldConnection.targetId);
 						}
 					}.bind(this));
-
-					var _setEventOffsets = function(event) {
-						if(event.offsetX == null) {
-						    event.offsetX = event.layerX;// - event.currentTarget.offsetLeft;
-						    event.offsetY = event.layerY;// - event.currentTarget.offsetTop;
-						}
-					};
 					
 					// when the user presses the mouse, add an Endpoint, if we are enabled.
 					var mouseDownListener = function(e) {
@@ -3838,22 +3892,26 @@
 							return false;
 						}
 
-						_setEventOffsets(evt);
-
-						// TODO fails in mootools right now.
 						var evtSource = evt.srcElement || evt.target,
-							esOffset = _updateOffset({elId:_currentInstance.getId(evtSource)}).o,
+							esOffset = jsPlumbAdapter.getOffset(evtSource, _currentInstance, true),
+							elOffset = jsPlumbAdapter.getOffset(_el, _currentInstance, true),
 							myOffsetInfo = _updateOffset({elId:elid}).o,
-							x = (evt.offsetX + esOffset.left - myOffsetInfo.left) / myOffsetInfo.width, 
-							y = (evt.offsetY + esOffset.top - myOffsetInfo.top) / myOffsetInfo.height, 
+							cl = jsPlumbAdapter.pageLocation(evt),
+							ox = cl[0] - esOffset.left + (esOffset.left - elOffset.left),
+							oy = cl[1] - esOffset.top + (esOffset.top - elOffset.top),
+							x = ox / myOffsetInfo.width,
+							y = oy / myOffsetInfo.height,
 							parentX = x, 
 							parentY = y;
 							
 						if (p.parent) {
 							var pEl = parentElement(), pId = _getId(pEl);
 							myOffsetInfo = _updateOffset({elId:pId}).o;
-							parentX = (evt.offsetX + esOffset.left - myOffsetInfo.left) / myOffsetInfo.width;
-							parentY = (evt.offsetY + esOffset.top - myOffsetInfo.top) / myOffsetInfo.height;
+							var pOffset = jsPlumbAdapter.getOffset(pEl, _currentInstance, true);
+							ox = cl[0] - esOffset.left + (esOffset.left - pOffset.left);
+							oy = cl[1] - esOffset.top + (esOffset.top - pOffset.top);
+							parentX = ox / myOffsetInfo.width;
+							parentY = oy / myOffsetInfo.height;
 						}
 							
 						// we need to override the anchor in here, and force 'isSource', but we don't want to mess with
@@ -3903,6 +3961,8 @@
 						// and then trigger its mousedown event, which will kick off a drag, which will start dragging
 						// a new connection from this endpoint.
 						_currentInstance.trigger(ep.canvas, "mousedown", e);
+
+						jsPlumbUtil.consume(e);
 						
 					}.bind(this);
 	               
@@ -5055,7 +5115,8 @@
                             scope = _jsPlumb.getAttribute(draggable, "originalScope"),
                             jpc = floatingConnections[id];
                             
-                        // if this is a drop back where the connection came from, mark it force rettach and
+                        if (jpc != null) {
+                            // if this is a drop back where the connection came from, mark it force rettach and
                         // return; the stop handler will reattach. without firing an event.
                         var redrop = jpc.suspendedEndpoint && (jpc.suspendedEndpoint.id == this.id ||
                                         this.referenceEndpoint && jpc.suspendedEndpoint.id == this.referenceEndpoint.id) ;							
@@ -5063,8 +5124,6 @@
                             jpc._forceReattach = true;
                             return;
                         }
-
-                        if (jpc != null) {
                             var idx = jpc.floatingAnchorIndex == null ? 1 : jpc.floatingAnchorIndex, oidx = idx === 0 ? 1 : 0;
                             
                             // restore the original scope if necessary (issue 57)						
@@ -5338,6 +5397,7 @@
         }
     });
 })();
+
 ;(function() {
 
     var makeConnector = function(_jsPlumb, renderMode, connectorName, connectorArgs) {
@@ -9170,7 +9230,7 @@
 		var pointerEventsSpec = params.pointerEventsSpec || "all", renderer = {};
 			
 		jsPlumb.jsPlumbUIComponent.apply(this, params.originalArgs);
-		this.canvas = null;this.path = null;this.svg = null; 
+		this.canvas = null;this.path = null;this.svg = null; this.bgCanvas = null;
 	
 		var clazz = params.cssClass + " " + (params.originalArgs[0].cssClass || ""),		
 			svgParams = {
@@ -9180,7 +9240,9 @@
 				"pointer-events":pointerEventsSpec,
 				"position":"absolute"
 			};				
+		
 		this.svg = _node("svg", svgParams);
+		
 		if (params.useDivWrapper) {
 			this.canvas = document.createElement("div");
 			this.canvas.style.position = "absolute";
@@ -9239,12 +9301,15 @@
 			renderer:renderer
 		};
 	};
+	
 	jsPlumbUtil.extend(SvgComponent, jsPlumb.jsPlumbUIComponent, {
 		cleanup:function() {
 			this.canvas && this.canvas.parentNode && this.canvas.parentNode.removeChild(this.canvas);
 			this.svg = null;
 			this.canvas = null;
+			this.bgCanvas = null;
 			this.path = null;			
+			this.group = null;
 		},
 		setVisible:function(v) {
 			if (this.canvas) {
@@ -9279,51 +9344,65 @@
 			var segments = self.getSegments(), p = "", offset = [0,0];			
 			if (extents.xmin < 0) offset[0] = -extents.xmin;
 			if (extents.ymin < 0) offset[1] = -extents.ymin;			
+
+			if (segments.length > 0) {
 			
-			// create path from segments.	
-			for (var i = 0; i < segments.length; i++) {
-				p += jsPlumb.Segments.svg.SegmentRenderer.getPath(segments[i]);
-				p += " ";
-			}			
-			
-			var a = { 
-					d:p,
-					transform:"translate(" + offset[0] + "," + offset[1] + ")",
-					"pointer-events":params["pointer-events"] || "visibleStroke"
-				}, 
-                outlineStyle = null,
-                d = [self.x,self.y,self.w,self.h];						
-			
-			// outline style.  actually means drawing an svg object underneath the main one.
-			if (style.outlineColor) {
-				var outlineWidth = style.outlineWidth || 1,
-					outlineStrokeWidth = style.lineWidth + (2 * outlineWidth);
-				outlineStyle = jsPlumb.extend({}, style);
-				outlineStyle.strokeStyle = jsPlumbUtil.convertStyle(style.outlineColor);
-				outlineStyle.lineWidth = outlineStrokeWidth;
+				// create path from segments.	
+				for (var i = 0; i < segments.length; i++) {
+					p += jsPlumb.Segments.svg.SegmentRenderer.getPath(segments[i]);
+					p += " ";
+				}			
 				
-				if (self.bgPath == null) {
-					self.bgPath = _node("path", a);
-			    	_appendAtIndex(self.svg, self.bgPath, 0);
-		    		self.attachListeners(self.bgPath, self);
-				}
-				else {
-					_attr(self.bgPath, a);
-				}
+				var a = { 
+						d:p,
+						transform:"translate(" + offset[0] + "," + offset[1] + ")",
+						"pointer-events":params["pointer-events"] || "visibleStroke"
+					}, 
+	                outlineStyle = null,
+	                d = [self.x,self.y,self.w,self.h];
+					
+				var mouseInOutFilters = {
+					"mouseenter":function(e) {
+						var rt = e.relatedTarget;
+						return rt == null || (rt != self.path && rt != self.bgPath);
+					},
+					"mouseout":function(e) {
+						var rt = e.relatedTarget;
+						return rt == null || (rt != self.path && rt != self.bgPath);
+					}
+				};
 				
-				_applyStyles(self.svg, self.bgPath, outlineStyle, d, self);
-			}			
-			
-	    	if (self.path == null) {
-		    	self.path = _node("path", a);
-		    	_appendAtIndex(self.svg, self.path, style.outlineColor ? 1 : 0);
-	    		self.attachListeners(self.path, self);	    		    		
-	    	}
-	    	else {
-	    		_attr(self.path, a);
-	    	}
-	    		    	
-	    	_applyStyles(self.svg, self.path, style, d, self);
+				// outline style.  actually means drawing an svg object underneath the main one.
+				if (style.outlineColor) {
+					var outlineWidth = style.outlineWidth || 1,
+						outlineStrokeWidth = style.lineWidth + (2 * outlineWidth);
+					outlineStyle = jsPlumb.extend({}, style);
+					outlineStyle.strokeStyle = jsPlumbUtil.convertStyle(style.outlineColor);
+					outlineStyle.lineWidth = outlineStrokeWidth;
+					
+					if (self.bgPath == null) {
+						self.bgPath = _node("path", a);
+				    	_appendAtIndex(self.svg, self.bgPath, 0);
+			    		self.attachListeners(self.bgPath, self, mouseInOutFilters);
+					}
+					else {
+						_attr(self.bgPath, a);
+					}
+					
+					_applyStyles(self.svg, self.bgPath, outlineStyle, d, self);
+				}			
+				
+		    	if (self.path == null) {
+			    	self.path = _node("path", a);
+					_appendAtIndex(self.svg, self.path, style.outlineColor ? 1 : 0);
+			    	self.attachListeners(self.path, self, mouseInOutFilters);	    		    		
+		    	}
+		    	else {
+		    		_attr(self.path, a);
+		    	}
+		    		    	
+		    	_applyStyles(self.svg, self.path, style, d, self);
+		    }
 		};
 		
 		this.reattachListeners = function() {
@@ -10470,7 +10549,7 @@
 			el.removeEvent(event, callback);
 		},
 		reset:function() {
-			console.log("RESET")
+
 		}
 	});
 

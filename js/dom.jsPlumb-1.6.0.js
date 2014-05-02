@@ -627,6 +627,10 @@
 
 	"use strict";
 
+	var Sniff = {
+		android:navigator.userAgent.toLowerCase().indexOf("android") > -1
+	};
+
 	var matchesSelector = function(el, selector, ctx) {
 			ctx = ctx || el.parentNode;
 			var possibles = ctx.querySelectorAll(selector);
@@ -855,15 +859,25 @@
 			return rv;
 		})(),
 		isIELT9 = iev > -1 && iev < 9, 
+		_genLoc = function(e, prefix) {
+			if (e == null) return [ 0, 0 ];
+			var ts = _touches(e), t = _getTouch(ts, 0);
+			return [t[prefix + "X"], t[prefix + "Y"]];
+		},
 		_pageLocation = function(e) {
+			if (e == null) return [ 0, 0 ];
 			if (isIELT9) {
 				return [ e.clientX + document.documentElement.scrollLeft, e.clientY + document.documentElement.scrollTop ];
 			}
 			else {
-				var ts = _touches(e), t = _getTouch(ts, 0);
-				// this is for iPad. may not fly for Android.
-				return [t.pageX, t.pageY];
+				return _genLoc(e, "page");
 			}
+		},
+		_screenLocation = function(e) {
+			return _genLoc(e, "screen");
+		},
+		_clientLocation = function(e) {
+			return _genLoc(e, "client");
 		},
 		_getTouch = function(touches, idx) { return touches.item ? touches.item(idx) : touches[idx]; },
 		_touches = function(e) {
@@ -883,7 +897,9 @@
 				var key = type + fn.__tauid;
 				obj["e" + key] = fn;
 				// TODO look at replacing with .call(..)
-				obj[key] = function() { obj["e"+key]( window.event ); };
+				obj[key] = function() { 
+					obj["e"+key] && obj["e"+key]( window.event ); 
+				};
 				obj.attachEvent( "on"+type, obj[key] );
 			}
 		},
@@ -922,6 +938,7 @@
 	* (don't fire click if the mouse has moved betweeb mousedown and mouseup),
 	* and synthesized click/tap events.
 	* @class Mottle
+	* @constructor
 	* @param {Object} params Constructor params
 	* @param {Integer} [params.clickThreshold=150] Threshold, in milliseconds beyond which a touchstart followed by a touchend is not considered to be a click.
 	* @param {Integer} [params.dblClickThreshold=350] Threshold, in milliseconds beyond which two successive tap events are not considered to be a click.
@@ -957,7 +974,7 @@
 		* to ensure you don't leak memory.
 		* @method remove
 		* @param {String|Element} el Element, or id of the element, to remove.
-		* @returns {Mottle} The current Mottle instance; you can chain this method.
+		* @return {Mottle} The current Mottle instance; you can chain this method.
 		*/
 		this.remove = function(el) {
 			_each(el, function() {
@@ -983,7 +1000,7 @@
 		* @param {String} [children] Comma-delimited list of selectors identifying allowed children.
 		* @param {String} event Event ID.
 		* @param {Function} fn Event handler function.
-		* @returns {Mottle} The current Mottle instance; you can chain this method.
+		* @return {Mottle} The current Mottle instance; you can chain this method.
 		*/
 		this.on = function(el, children, event, fn) {
 			var _el = arguments[0],
@@ -1003,7 +1020,7 @@
 		* @param {Element[]|Element|String} el Element - or ID of element - from which to remove event listener.
 		* @param {String} event Event ID.
 		* @param {Function} fn Event handler function.
-		* @returns {Mottle} The current Mottle instance; you can chain this method.
+		* @return {Mottle} The current Mottle instance; you can chain this method.
 		*/
 		this.off = function(el, evt, fn) {
 			_unbind(el, evt, fn);
@@ -1011,40 +1028,77 @@
 		};
 
 		/**
-		* @name Mottle#trigger
-		* @function
-		* @desc Triggers some event for a given element.
+		* Triggers some event for a given element.
+		* @method trigger
 		* @param {Element} el Element for which to trigger the event.
 		* @param {String} event Event ID.
 		* @param {Event} originalEvent The original event. Should be optional of course, but currently is not, due
 		* to the jsPlumb use case that caused this method to be added.
-		* @returns {Mottle} The current Mottle instance; you can chain this method.
+		* @param {Object} [payload] Optional object to set as `payload` on the generated event; useful for message passing.
+		* @return {Mottle} The current Mottle instance; you can chain this method.
 		*/
-		this.trigger = function(el, event, originalEvent) {
+		this.trigger = function(el, event, originalEvent, payload) {
+			var eventToBind = (isTouchDevice && touchMap[event]) ? touchMap[event] : event;
+			var pl = _pageLocation(originalEvent), sl = _screenLocation(originalEvent), cl = _clientLocation(originalEvent);
 			_each(el, function() {
 				var _el = _gel(this), evt;
 				originalEvent = originalEvent || {
-					screenX:0,
-					screenY:0,
-					clientX:0,
-					clientY:0
+					screenX:sl[0],
+					screenY:sl[1],
+					clientX:cl[0],
+					clientY:cl[1]
 				};
+
+				var _decorate = function(_evt) {
+					if (payload) _evt.payload = payload;
+				};
+
+				var eventGenerators = {
+					"TouchEvent":function(evt) {
+						var t = document.createTouch(window, _el, 0, pl[0], pl[1], 
+									sl[0], sl[1],
+									cl[0], cl[1],
+									0,0,0,0);
+
+						evt.initTouchEvent(eventToBind, true, true, window, 0, 
+							sl[0], sl[1],
+							cl[0], cl[1],
+							false, false, false, false, document.createTouchList(t));
+					},
+					"MouseEvents":function(evt) {
+						evt.initMouseEvent(eventToBind, true, true, window, 0,
+							sl[0], sl[1],
+							cl[0], cl[1],
+							false, false, false, false, 1, _el);
+						
+						if (Sniff.android) {
+							// Android's touch events are not standard.
+							var t = document.createTouch(window, _el, 0, pl[0], pl[1], 
+										sl[0], sl[1],
+										cl[0], cl[1],
+										0,0,0,0);
+
+							evt.touches = evt.targetTouches = evt.changedTouches = document.createTouchList(t);
+						}
+					}
+				};
+
 				if (document.createEvent) {
-					evt = document.createEvent("MouseEvents");
-					evt.initMouseEvent(event, true, true, window, 0,
-						originalEvent.screenX, originalEvent.screenY,
-						originalEvent.clientX, originalEvent.clientY,
-						false, false, false, false, 1, null);
+					var ite = (isTouchDevice && touchMap[event] && !Sniff.android), evtName = ite ? "TouchEvent" : "MouseEvents";
+					evt = document.createEvent(evtName);
+					eventGenerators[evtName](evt);
+					_decorate(evt);
 					_el.dispatchEvent(evt);
 				}
 				else if (document.createEventObject) {
 					evt = document.createEventObject();
-					evt.eventType = evt.eventName = event;
-					evt.screenX = originalEvent.screenX;
-					evt.screenY = originalEvent.screenY;
-					evt.clientX = originalEvent.clientX;
-					evt.clientY = originalEvent.clientY;
-					_el.fireEvent('on' + event, evt);
+					evt.eventType = evt.eventName = eventToBind;
+					evt.screenX = sl[0];
+					evt.screenY = sl[1];
+					evt.clientX = cl[0];
+					evt.clientY = cl[1];
+					_decorate(evt);
+					_el.fireEvent('on' + eventToBind, evt);
 				}
 			});
 			return this;
@@ -1052,17 +1106,28 @@
 	};
 
 	/**
-	* @name Mottle#consume
-	* @desc Static method to assist in 'consuming' an element.
+	* Static method to assist in 'consuming' an element: uses `stopPropagation` where available, or sets `e.returnValue=false` where it is not.
+	* @method Mottle.consume
+	* @param {Event} e Event to consume
+	* @param {Boolean} [doNotPreventDefault=false] If true, does not call `preventDefault()` on the event.
 	*/
 	Mottle.consume = function(e, doNotPreventDefault) {
 		if (e.stopPropagation)
 			e.stopPropagation();
 		else 
 			e.returnValue = false;
+
 		if (!doNotPreventDefault && e.preventDefault)
 			 e.preventDefault();
 	};
+
+	/**
+	* Gets the page location corresponding to the given event. For touch events this means get the page location of the first touch.
+	* @method Mottle.pageLocation
+	* @param {Event} e Event to get page location for.
+	* @return {Integer[]} [left, top] for the given event.
+	*/
+	Mottle.pageLocation = _pageLocation;
 
 }).call(this);
 
@@ -1109,32 +1174,32 @@
 	};
 
 	var iev = (function() {
-                var rv = -1;
-                if (navigator.appName == 'Microsoft Internet Explorer') {
-                        var ua = navigator.userAgent,
-                                re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
-                        if (re.exec(ua) != null)
-                                rv = parseFloat(RegExp.$1);
-                }
-                return rv;
+            var rv = -1;
+            if (navigator.appName == 'Microsoft Internet Explorer') {
+                    var ua = navigator.userAgent,
+                            re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+                    if (re.exec(ua) != null)
+                            rv = parseFloat(RegExp.$1);
+            }
+            return rv;
         })(),
         isIELT9 = iev > -1 && iev < 9,
         _pl = function(e) {
-                if (isIELT9) {
-                        return [ e.clientX + document.documentElement.scrollLeft, e.clientY + document.documentElement.scrollTop ];
-                }
-                else {
-                        var ts = _touches(e), t = _getTouch(ts, 0);
-                        // this is for iPad. may not fly for Android.
-                        return [t.pageX, t.pageY];
-                }
+            if (isIELT9) {
+                    return [ e.clientX + document.documentElement.scrollLeft, e.clientY + document.documentElement.scrollTop ];
+            }
+            else {
+                    var ts = _touches(e), t = _getTouch(ts, 0);
+                    // this is for iPad. may not fly for Android.
+                    return [t.pageX, t.pageY];
+            }
         }, 
         _getTouch = function(touches, idx) { return touches.item ? touches.item(idx) : touches[idx]; },
         _touches = function(e) {
-                return e.touches && e.touches.length > 0 ? e.touches :
-                           e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches :
-                           e.targetTouches && e.targetTouches.length > 0 ? e.targetTouches :
-                           [ e ];
+            return e.touches && e.touches.length > 0 ? e.touches :
+                       e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches :
+                       e.targetTouches && e.targetTouches.length > 0 ? e.targetTouches :
+                       [ e ];
         },
         _classes = {
             draggable:"katavorio-draggable",    // draggable elements
@@ -1176,7 +1241,14 @@
 			else {
 				e.returnValue = false;
 			}
-		};
+		},
+        _defaultInputFilterSelector = "input,textarea,select,button",
+        //
+        // filters out events on all input elements, like textarea, checkbox, input, select.
+        _inputFilter = function(e, el, _katavorio) {
+            var t = e.srcElement || e.target;
+            return !matchesSelector(t, _katavorio.getInputFilterSelector(), el);
+        };
         
     var Super = function(el, params, css, scope) {
         params.addClass(el, this._class);
@@ -1200,6 +1272,8 @@
         var k = Super.apply(this, arguments),
             downAt = [0,0], posAtDown = null, moving = false,
 			consumeStartEvent = params.consumeStartEvent !== false,
+			dragEl = el,
+			clone = params.clone,
 			toGrid = function(pos) {
 				return params.grid == null ? pos :
 					[
@@ -1228,8 +1302,16 @@
             matchingDroppables = [], intersectingDroppables = [],
             downListener = function(e) {
                 if (this.isEnabled() && canDrag()) {
-					var _f =  filter(e);
+					var _f =  filter(e) && _inputFilter(e, el, this.k);
 					if (_f) {
+						if (!clone)
+							dragEl = el;
+						else {
+							dragEl = el.cloneNode(true);
+							dragEl.setAttribute("id", null);
+							dragEl.style.position = "absolute";
+							document.body.appendChild(dragEl);
+						}
 						consumeStartEvent && _consume(e);
 						downAt = _pl(e);
 						params.events["start"]({el:el, pos:posAtDown, e:e, drag:this});
@@ -1259,7 +1341,6 @@
                     this.moveBy(dx, dy, e);
                     k.updateSelection(dx, dy, this);
                 }   
-				//e.preventDefault();
             }.bind(this),
             upListener = function(e) {
                 downAt = null;
@@ -1269,12 +1350,20 @@
                 params.removeClass(document.body, css.noSelect);
                 this.unmark(e);
                 k.unmarkSelection(this, e);
-                params.events["stop"]({el:el, pos:params.getPosition(el), e:e, drag:this});
+                params.events["stop"]({el:dragEl, pos:params.getPosition(dragEl), e:e, drag:this});
+                if (clone) {
+				    dragEl && dragEl.parentNode && dragEl.parentNode.removeChild(dragEl);
+				    dragEl = null;
+                }
             }.bind(this);
 			
 		this.abort = function() {
 			if (downAt != null)
 				upListener();
+		};
+		
+		this.getDragElement = function() {
+			return dragEl || el;
 		};
 
         this.mark = function() {
@@ -1282,7 +1371,7 @@
             this.size = params.getSize(el);
             matchingDroppables = k.getMatchingDroppables(this);
             _setDroppablesActive(matchingDroppables, true, false, this);
-            params.addClass(el, params.dragClass || css.drag);
+            params.addClass(dragEl, params.dragClass || css.drag);
             if (params.constrain || params.containment) {
                 var cs = params.getSize(this.el.parentNode);
                 constrainRect = { w:cs[0], h:cs[1] };
@@ -1293,13 +1382,13 @@
             matchingDroppables.length = 0;
             for (var i = 0; i < intersectingDroppables.length; i++)
                 intersectingDroppables[i].drop(this, e);
-            params.removeClass(el, params.dragClass || css.drag);
+            params.removeClass(dragEl, params.dragClass || css.drag);
 		};
 		this.moveBy = function(dx, dy, e) {
 			intersectingDroppables.length = 0;
 			var cPos = constrain(toGrid(([posAtDown[0] + dx, posAtDown[1] + dy]))),
 				rect = { x:cPos[0], y:cPos[1], w:this.size[0], h:this.size[1]};
-			params.setPosition(el, cPos);
+			params.setPosition(dragEl, cPos);
 			for (var i = 0; i < matchingDroppables.length; i++) {
 				var r2 = { x:matchingDroppables[i].position[0], y:matchingDroppables[i].position[1], w:matchingDroppables[i].size[0], h:matchingDroppables[i].size[1]};
 				if (params.intersects(rect, r2) && matchingDroppables[i].canDrop(this)) {
@@ -1433,6 +1522,25 @@
 		// prepare map of css classes based on defaults frst, then optional overrides
 		for (var i in _classes) _css[i] = _classes[i];
 		for (var i in overrideCss) _css[i] = overrideCss[i];
+
+        var inputFilterSelector = katavorioParams.inputFilterSelector || _defaultInputFilterSelector;
+        /**
+        * Gets the selector identifying which input elements to filter from drag events.
+        * @method getInputFilterSelector
+        * @return {String} Current input filter selector.
+        */
+        this.getInputFilterSelector = function() { return inputFilterSelector; }; 
+
+        /**
+        * Sets the selector identifying which input elements to filter from drag events.
+        * @method setInputFilterSelector
+        * @param {String} selector Input filter selector to set.
+        * @return {Katavorio} Current instance; method may be chained.
+        */
+        this.setInputFilterSelector = function(selector) { 
+            inputFilterSelector = selector; 
+            return this;
+        }; 
         
         this.draggable = function(el, params) {
 			var o = [];
@@ -1778,6 +1886,15 @@
             l[insertAtStart ? "unshift" : "push"](value);
             return l;
         },
+        consume : function(e, doNotPreventDefault) {
+            if (e.stopPropagation)
+                e.stopPropagation();
+            else 
+                e.returnValue = false;
+            
+            if (!doNotPreventDefault && e.preventDefault)
+                 e.preventDefault();
+        },
         //
         // extends the given obj (which can be an array) with the given constructor function, prototype functions, and
         // class members, any of which may be null.
@@ -1995,22 +2112,62 @@
  */
 ;(function() {
     
-		var canvasAvailable = !!document.createElement('canvas').getContext,
+	var canvasAvailable = !!document.createElement('canvas').getContext,
 		svgAvailable = !!window.SVGAngle || document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1"),
 		vmlAvailable = function() {		    
-            if (vmlAvailable.vml === undefined) { 
-                var a = document.body.appendChild(document.createElement('div'));
-            	a.innerHTML = '<v:shape id="vml_flag1" adj="1" />';
-            	var b = a.firstChild;
-            	if (b != null && b.style != null) {
+	        if (vmlAvailable.vml === undefined) { 
+	            var a = document.body.appendChild(document.createElement('div'));
+	        	a.innerHTML = '<v:shape id="vml_flag1" adj="1" />';
+	        	var b = a.firstChild;
+	        	if (b != null && b.style != null) {
 	            	b.style.behavior = "url(#default#VML)";
 	            	vmlAvailable.vml = b ? typeof b.adj == "object": true;
 	            }
 	            else
 	            	vmlAvailable.vml = false;
-            	a.parentNode.removeChild(a);
-            }
-            return vmlAvailable.vml;
+	        	a.parentNode.removeChild(a);
+	        }
+	        return vmlAvailable.vml;
+		},
+		// TODO: remove this once we remove all library adapter versions and have only vanilla jsplumb: this functionality
+		// comes from Mottle.
+		iev = (function() {
+			var rv = -1; 
+			if (navigator.appName == 'Microsoft Internet Explorer') {
+				var ua = navigator.userAgent,
+					re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+				if (re.exec(ua) != null)
+					rv = parseFloat(RegExp.$1);
+			}
+			return rv;
+		})(),
+		isIELT9 = iev > -1 && iev < 9, 
+		_genLoc = function(e, prefix) {
+			if (e == null) return [ 0, 0 ];
+			var ts = _touches(e), t = _getTouch(ts, 0);
+			return [t[prefix + "X"], t[prefix + "Y"]];
+		},
+		_pageLocation = function(e) {
+			if (e == null) return [ 0, 0 ];
+			if (isIELT9) {
+				return [ e.clientX + document.documentElement.scrollLeft, e.clientY + document.documentElement.scrollTop ];
+			}
+			else {
+				return _genLoc(e, "page");
+			}
+		},
+		_screenLocation = function(e) {
+			return _genLoc(e, "screen");
+		},
+		_clientLocation = function(e) {
+			return _genLoc(e, "client");
+		},
+		_getTouch = function(touches, idx) { return touches.item ? touches.item(idx) : touches[idx]; },
+		_touches = function(e) {
+			return e.touches && e.touches.length > 0 ? e.touches : 
+				   e.changedTouches && e.changedTouches.length > 0 ? e.changedTouches :
+				   e.targetTouches && e.targetTouches.length > 0 ? e.targetTouches :
+				   [ e ];
 		};
         
     /**
@@ -2247,6 +2404,10 @@
         
         headless:false,
 
+        pageLocation:_pageLocation,
+        screenLocation:_screenLocation,
+        clientLocation:_clientLocation,
+
         getAttribute:function(el, attName) {
         	return el.getAttribute(attName);
         },
@@ -2471,28 +2632,30 @@
 			
 			// user can supply a beforeDrop callback, which will be executed before a dropped
 			// connection is confirmed. user can return false to reject connection.			
-			this.isDropAllowed = function(sourceId, targetId, scope, connection, dropEndpoint) {
-				var r = this._jsPlumb.instance.checkCondition("beforeDrop", { 
-					sourceId:sourceId, 
-					targetId:targetId, 
-					scope:scope,
-					connection:connection,
-					dropEndpoint:dropEndpoint 
-				});
-				if (this._jsPlumb.beforeDrop) {
-					try { 
-						r = this._jsPlumb.beforeDrop({ 
-							sourceId:sourceId, 
-							targetId:targetId, 
-							scope:scope, 
-							connection:connection,
-							dropEndpoint:dropEndpoint
-						}); 
+			this.isDropAllowed = function(sourceId, targetId, scope, connection, dropEndpoint, source, target) {
+					var r = this._jsPlumb.instance.checkCondition("beforeDrop", { 
+						sourceId:sourceId, 
+						targetId:targetId, 
+						scope:scope,
+						connection:connection,
+						dropEndpoint:dropEndpoint,
+						source:source, target:target
+					});
+					if (this._jsPlumb.beforeDrop) {
+						try { 
+							r = this._jsPlumb.beforeDrop({ 
+								sourceId:sourceId, 
+								targetId:targetId, 
+								scope:scope, 
+								connection:connection,
+								dropEndpoint:dropEndpoint,
+								source:source, target:target
+							}); 
+						}
+						catch (e) { _ju.log("jsPlumb: beforeDrop callback failed", e); }
 					}
-					catch (e) { _ju.log("jsPlumb: beforeDrop callback failed", e); }
-				}
-				return r;
-			};													
+					return r;
+				};													
 
 		    var boundListeners = [],
 		    	bindAListener = function(obj, type, fn) {
@@ -2500,9 +2663,10 @@
 			    	obj.bind(type, fn);
 			    },
 		    	domListeners = [],
-            	bindOne = function(o, c, evt) {
+            	bindOne = function(o, c, evt, override) {
 					var filteredEvent = eventFilters[evt] || evt,
 						fn = function(ee) {
+							if (override && override(ee) === false) return;
 							c.fire(filteredEvent, c, ee);
 						};
 					domListeners.push([o, evt, fn, c]);
@@ -2541,9 +2705,10 @@
             	boundListeners = null;
             };            
 		    
-		    this.attachListeners = function(o, c) {
+		    this.attachListeners = function(o, c, overrides) {
+				overrides = overrides || {};
 				for (var i = 0, j = events.length; i < j; i++) {
-					bindOne(o, c, events[i]); 			
+					bindOne(o, c, events[i], overrides[events[i]]); 			
 				}
 			};	
 			this.detachListeners = function() {
@@ -2701,7 +2866,11 @@
                         
                     if (this.canvas != null) {
                         if (this._jsPlumb.instance.hoverClass != null) {
-							this._jsPlumb.instance[hover ? "addClass" : "removeClass"](this.canvas, this._jsPlumb.instance.hoverClass);
+                        	var method = hover ? "addClass" : "removeClass";
+							this._jsPlumb.instance[method](this.canvas, this._jsPlumb.instance.hoverClass);
+                        }
+                        if (this._jsPlumb.hoverClass != null) {
+							this._jsPlumb.instance[method](this.canvas, this._jsPlumb.hoverClass);
                         }
                     }
 		   		 	if (this._jsPlumb.hoverPaintStyle != null) {
@@ -3150,7 +3319,8 @@
 							_currentInstance.select({source:element}).addClass(_currentInstance.elementDraggingClass + " " + _currentInstance.sourceElementDraggingClass, true);
 							_currentInstance.select({target:element}).addClass(_currentInstance.elementDraggingClass + " " + _currentInstance.targetElementDraggingClass, true);
 							_currentInstance.setConnectionBeingDragged(true);
-						});
+							if (options.canDrag) return dragOptions.canDrag();
+						}, false);
 	
 						options[dragEvent] = _ju.wrap(options[dragEvent], function() {
 							// TODO: here we could actually use getDragObject, and then compute it ourselves,
@@ -4542,7 +4712,7 @@
 						// source - jpc.sourceId
 						// target - elid
 						//
-						var _continue = proxyComponent.isDropAllowed(idx === 0 ? elid : jpc.sourceId, idx === 0 ? jpc.targetId : elid, jpc.scope, jpc, null);
+						var _continue = proxyComponent.isDropAllowed(idx === 0 ? elid : jpc.sourceId, idx === 0 ? jpc.targetId : elid, jpc.scope, jpc, null, idx === 0 ? elInfo.el : jpc.source, idx === 0 ? jpc.target : elInfo.el);
 
 						// reinstate any suspended endpoint; this just puts the connection back into
 						// a state in which it will report sensible values if someone asks it about
@@ -4564,7 +4734,6 @@
 								newTargetId:idx == 1 ? elid : jpc.targetId,
 								connection:jpc
 							}, originalEvent);
-							
 						}
 
 						if (_continue) {
@@ -4757,13 +4926,6 @@
 							this.repaint(oldConnection.targetId);
 						}
 					}.bind(this));
-
-					var _setEventOffsets = function(event) {
-						if(event.offsetX == null) {
-						    event.offsetX = event.layerX;// - event.currentTarget.offsetLeft;
-						    event.offsetY = event.layerY;// - event.currentTarget.offsetTop;
-						}
-					};
 					
 					// when the user presses the mouse, add an Endpoint, if we are enabled.
 					var mouseDownListener = function(e) {
@@ -4793,22 +4955,26 @@
 							return false;
 						}
 
-						_setEventOffsets(evt);
-
-						// TODO fails in mootools right now.
 						var evtSource = evt.srcElement || evt.target,
-							esOffset = _updateOffset({elId:_currentInstance.getId(evtSource)}).o,
+							esOffset = jsPlumbAdapter.getOffset(evtSource, _currentInstance, true),
+							elOffset = jsPlumbAdapter.getOffset(_el, _currentInstance, true),
 							myOffsetInfo = _updateOffset({elId:elid}).o,
-							x = (evt.offsetX + esOffset.left - myOffsetInfo.left) / myOffsetInfo.width, 
-							y = (evt.offsetY + esOffset.top - myOffsetInfo.top) / myOffsetInfo.height, 
+							cl = jsPlumbAdapter.pageLocation(evt),
+							ox = cl[0] - esOffset.left + (esOffset.left - elOffset.left),
+							oy = cl[1] - esOffset.top + (esOffset.top - elOffset.top),
+							x = ox / myOffsetInfo.width,
+							y = oy / myOffsetInfo.height,
 							parentX = x, 
 							parentY = y;
 							
 						if (p.parent) {
 							var pEl = parentElement(), pId = _getId(pEl);
 							myOffsetInfo = _updateOffset({elId:pId}).o;
-							parentX = (evt.offsetX + esOffset.left - myOffsetInfo.left) / myOffsetInfo.width;
-							parentY = (evt.offsetY + esOffset.top - myOffsetInfo.top) / myOffsetInfo.height;
+							var pOffset = jsPlumbAdapter.getOffset(pEl, _currentInstance, true);
+							ox = cl[0] - esOffset.left + (esOffset.left - pOffset.left);
+							oy = cl[1] - esOffset.top + (esOffset.top - pOffset.top);
+							parentX = ox / myOffsetInfo.width;
+							parentY = oy / myOffsetInfo.height;
 						}
 							
 						// we need to override the anchor in here, and force 'isSource', but we don't want to mess with
@@ -4858,6 +5024,8 @@
 						// and then trigger its mousedown event, which will kick off a drag, which will start dragging
 						// a new connection from this endpoint.
 						_currentInstance.trigger(ep.canvas, "mousedown", e);
+
+						jsPlumbUtil.consume(e);
 						
 					}.bind(this);
 	               
@@ -6010,7 +6178,8 @@
                             scope = _jsPlumb.getAttribute(draggable, "originalScope"),
                             jpc = floatingConnections[id];
                             
-                        // if this is a drop back where the connection came from, mark it force rettach and
+                        if (jpc != null) {
+                            // if this is a drop back where the connection came from, mark it force rettach and
                         // return; the stop handler will reattach. without firing an event.
                         var redrop = jpc.suspendedEndpoint && (jpc.suspendedEndpoint.id == this.id ||
                                         this.referenceEndpoint && jpc.suspendedEndpoint.id == this.referenceEndpoint.id) ;							
@@ -6018,8 +6187,6 @@
                             jpc._forceReattach = true;
                             return;
                         }
-
-                        if (jpc != null) {
                             var idx = jpc.floatingAnchorIndex == null ? 1 : jpc.floatingAnchorIndex, oidx = idx === 0 ? 1 : 0;
                             
                             // restore the original scope if necessary (issue 57)						
@@ -6293,6 +6460,7 @@
         }
     });
 })();
+
 ;(function() {
 
     var makeConnector = function(_jsPlumb, renderMode, connectorName, connectorArgs) {
@@ -10125,7 +10293,7 @@
 		var pointerEventsSpec = params.pointerEventsSpec || "all", renderer = {};
 			
 		jsPlumb.jsPlumbUIComponent.apply(this, params.originalArgs);
-		this.canvas = null;this.path = null;this.svg = null; 
+		this.canvas = null;this.path = null;this.svg = null; this.bgCanvas = null;
 	
 		var clazz = params.cssClass + " " + (params.originalArgs[0].cssClass || ""),		
 			svgParams = {
@@ -10135,7 +10303,9 @@
 				"pointer-events":pointerEventsSpec,
 				"position":"absolute"
 			};				
+		
 		this.svg = _node("svg", svgParams);
+		
 		if (params.useDivWrapper) {
 			this.canvas = document.createElement("div");
 			this.canvas.style.position = "absolute";
@@ -10194,12 +10364,15 @@
 			renderer:renderer
 		};
 	};
+	
 	jsPlumbUtil.extend(SvgComponent, jsPlumb.jsPlumbUIComponent, {
 		cleanup:function() {
 			this.canvas && this.canvas.parentNode && this.canvas.parentNode.removeChild(this.canvas);
 			this.svg = null;
 			this.canvas = null;
+			this.bgCanvas = null;
 			this.path = null;			
+			this.group = null;
 		},
 		setVisible:function(v) {
 			if (this.canvas) {
@@ -10234,51 +10407,65 @@
 			var segments = self.getSegments(), p = "", offset = [0,0];			
 			if (extents.xmin < 0) offset[0] = -extents.xmin;
 			if (extents.ymin < 0) offset[1] = -extents.ymin;			
+
+			if (segments.length > 0) {
 			
-			// create path from segments.	
-			for (var i = 0; i < segments.length; i++) {
-				p += jsPlumb.Segments.svg.SegmentRenderer.getPath(segments[i]);
-				p += " ";
-			}			
-			
-			var a = { 
-					d:p,
-					transform:"translate(" + offset[0] + "," + offset[1] + ")",
-					"pointer-events":params["pointer-events"] || "visibleStroke"
-				}, 
-                outlineStyle = null,
-                d = [self.x,self.y,self.w,self.h];						
-			
-			// outline style.  actually means drawing an svg object underneath the main one.
-			if (style.outlineColor) {
-				var outlineWidth = style.outlineWidth || 1,
-					outlineStrokeWidth = style.lineWidth + (2 * outlineWidth);
-				outlineStyle = jsPlumb.extend({}, style);
-				outlineStyle.strokeStyle = jsPlumbUtil.convertStyle(style.outlineColor);
-				outlineStyle.lineWidth = outlineStrokeWidth;
+				// create path from segments.	
+				for (var i = 0; i < segments.length; i++) {
+					p += jsPlumb.Segments.svg.SegmentRenderer.getPath(segments[i]);
+					p += " ";
+				}			
 				
-				if (self.bgPath == null) {
-					self.bgPath = _node("path", a);
-			    	_appendAtIndex(self.svg, self.bgPath, 0);
-		    		self.attachListeners(self.bgPath, self);
-				}
-				else {
-					_attr(self.bgPath, a);
-				}
+				var a = { 
+						d:p,
+						transform:"translate(" + offset[0] + "," + offset[1] + ")",
+						"pointer-events":params["pointer-events"] || "visibleStroke"
+					}, 
+	                outlineStyle = null,
+	                d = [self.x,self.y,self.w,self.h];
+					
+				var mouseInOutFilters = {
+					"mouseenter":function(e) {
+						var rt = e.relatedTarget;
+						return rt == null || (rt != self.path && rt != self.bgPath);
+					},
+					"mouseout":function(e) {
+						var rt = e.relatedTarget;
+						return rt == null || (rt != self.path && rt != self.bgPath);
+					}
+				};
 				
-				_applyStyles(self.svg, self.bgPath, outlineStyle, d, self);
-			}			
-			
-	    	if (self.path == null) {
-		    	self.path = _node("path", a);
-		    	_appendAtIndex(self.svg, self.path, style.outlineColor ? 1 : 0);
-	    		self.attachListeners(self.path, self);	    		    		
-	    	}
-	    	else {
-	    		_attr(self.path, a);
-	    	}
-	    		    	
-	    	_applyStyles(self.svg, self.path, style, d, self);
+				// outline style.  actually means drawing an svg object underneath the main one.
+				if (style.outlineColor) {
+					var outlineWidth = style.outlineWidth || 1,
+						outlineStrokeWidth = style.lineWidth + (2 * outlineWidth);
+					outlineStyle = jsPlumb.extend({}, style);
+					outlineStyle.strokeStyle = jsPlumbUtil.convertStyle(style.outlineColor);
+					outlineStyle.lineWidth = outlineStrokeWidth;
+					
+					if (self.bgPath == null) {
+						self.bgPath = _node("path", a);
+				    	_appendAtIndex(self.svg, self.bgPath, 0);
+			    		self.attachListeners(self.bgPath, self, mouseInOutFilters);
+					}
+					else {
+						_attr(self.bgPath, a);
+					}
+					
+					_applyStyles(self.svg, self.bgPath, outlineStyle, d, self);
+				}			
+				
+		    	if (self.path == null) {
+			    	self.path = _node("path", a);
+					_appendAtIndex(self.svg, self.path, style.outlineColor ? 1 : 0);
+			    	self.attachListeners(self.path, self, mouseInOutFilters);	    		    		
+		    	}
+		    	else {
+		    		_attr(self.path, a);
+		    	}
+		    		    	
+		    	_applyStyles(self.svg, self.path, style, d, self);
+		    }
 		};
 		
 		this.reattachListeners = function() {
@@ -11191,7 +11378,7 @@
 		isAlreadyDraggable : function(el) { return el._katavorioDrag != null; },
 		isDragSupported : function(el, options) { return true; },
 		isDropSupported : function(el, options) { return true; },
-		getDragObject : function(eventArgs) { return eventArgs[0].drag.el; },
+		getDragObject : function(eventArgs) { return eventArgs[0].drag.getDragElement(); },
 		getDragScope : function(el) {
 			return el._katavorioDrag && el._katavorioDrag.scopes.join(" ") || "";
 		},

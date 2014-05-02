@@ -19,7 +19,8 @@ module.exports = function(grunt) {
         copy:{
 			all:{
 				files:[
-          { expand:true, cwd:JSPLUMB + "/dist", src:"**/*.*", dest:"."},
+          { expand:true, cwd:JSPLUMB + "/dist", src:"css/*.*", dest:"."},
+          { expand:true, cwd:JSPLUMB + "/dist", src:"js/*.*", dest:"."},
           { src:"main.css", dest:"css/" },
           { src:"syntax.css", dest:"css/" }
         ]
